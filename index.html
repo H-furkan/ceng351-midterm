@@ -418,16 +418,28 @@ DELETE FROM Students S WHERE S.name = &#x27;Smith&#x27;;</code></pre>
   FOREIGN KEY (did) REFERENCES Departments );</code></pre>
 
 <h2>3. Arrow (key constraint) → merge into the arrow side</h2>
-<p>Each department has at most one manager, so the manager can live in the Departments table. This is the preferred way.</p>
+<p>The <mark>arrow side</mark> is the entity the arrow <b>starts from</b>, the one that touches the arrow's tail. Each of its rows takes part in the relationship <em>at most once</em>.</p>
+<figure class="er" style="max-width:560px"><svg viewBox="0 0 560 90" role="img" aria-label="Departments arrow to Manages, line to Employees"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs><line x1="118" y1="45" x2="213" y2="45" stroke="currentColor" stroke-width="1.4" marker-end="url(#arr)"/><line x1="327" y1="45" x2="410" y2="45" stroke="currentColor" stroke-width="1.4"/><rect x="25.0" y="28" width="90" height="34" rx="3" fill="var(--paper)" stroke="currentColor" stroke-width="1.4"/><text x="70" y="50" text-anchor="middle" class="t">Depts</text><polygon points="214.0,45 270,22.0 326.0,45 270,68.0" fill="var(--paper)" stroke="currentColor" stroke-width="1.4"/><text x="270" y="49" text-anchor="middle" class="t s">Manages</text><rect x="407.0" y="28" width="96" height="34" rx="3" fill="var(--paper)" stroke="currentColor" stroke-width="1.4"/><text x="455" y="50" text-anchor="middle" class="t">Employees</text><text x="70" y="85" text-anchor="middle" class="t c">arrow side</text><text x="455" y="85" text-anchor="middle" class="t c">other side</text></svg></figure>
+<p>The rule in three steps:</p>
+<ol>
+<li>Find the arrow side. Here: <b>Departments</b>, because each department has at most one manager.</li>
+<li>Add to the arrow side's table the <b>other side's key</b> (<code>ssn</code>) as a foreign key, plus the <b>relationship's attributes</b> (<code>since</code>).</li>
+<li>Don't create a separate Manages table. The arrow side's primary key stays the same (<code>did</code>).</li>
+</ol>
 <pre class="code sql"><code>CREATE TABLE Dept_Mgr (
   did     INTEGER,
   dname   CHAR(20),
   budget  REAL,
-  ssn     CHAR(11),          -- the manager; NULL if none
-  since   DATE,
+  ssn     CHAR(11),   -- manager: the other side&#x27;s key (NULL if none)
+  since   DATE,       -- attribute of Manages
   PRIMARY KEY (did),
   FOREIGN KEY (ssn) REFERENCES Employees );</code></pre>
+<p><b>Why this side?</b> A department has at most one manager, so one <code>ssn</code> cell per department row is always enough:</p>
+<div class="tbl "><table><caption>Dept_Mgr</caption><thead><tr><th class="key">did</th><th class="">dname</th><th class="">ssn</th><th class="">since</th></tr></thead><tbody><tr><td>1</td><td>Sales</td><td>111</td><td>2024</td></tr><tr><td>2</td><td>IT</td><td>111</td><td>2025</td></tr><tr><td>3</td><td>HR</td><td><i class=null>NULL</i></td><td><i class=null>NULL</i></td></tr></tbody></table></div>
+<p>Going the other way breaks. Employee 111 manages two departments, so a <code>did</code> column in Employees would need two values in one cell. No arrow from Employees means an employee can appear many times, and a single column can't hold that.</p>
+<p>Memory hook: <b>the column goes where the arrow starts</b>. The arrow side "points at" one partner, and that pointer is the foreign key.</p>
 <p>The alternative is a separate <code>Manages(ssn, did, since)</code> table with primary key <code>did</code> only, because <code>did</code> appears at most once. Either is accepted, but merging uses fewer tables, and the sample answer keys ask for "as few tables as possible".</p>
+<p><b>Sample Q2b uses the same rule:</b> the bold arrow starts at Grad, so Grad gets Advisor's key (<code>AdvisorSSN</code>) and SupervisedBy's attribute (<code>Since</code>). See the worked example below.</p>
 
 <h2>4. Bold arrow (exactly one) → merge and add NOT NULL</h2>
 <pre class="code sql"><code>ssn  CHAR(11) NOT NULL,   -- every department must have a manager
@@ -489,7 +501,7 @@ CREATE TABLE Advisor (
 CREATE TABLE Grad (
   S_Id         INTEGER,
   ThesisTitle  VARCHAR(100),
-  AdvisorSSN   INTEGER NOT NULL,   -- bold line: every grad has an advisor
+  AdvisorSSN   INTEGER NOT NULL,   -- bold arrow: every grad has exactly one advisor
   Since        DATE,               -- attribute of SupervisedBy
   PRIMARY KEY (S_Id),
   FOREIGN KEY (S_Id) REFERENCES Student(S_Id) ON DELETE CASCADE,
@@ -937,7 +949,7 @@ CREATE TABLE Advisor (
 CREATE TABLE Grad (
   S_Id         INTEGER,
   ThesisTitle  VARCHAR(100),
-  AdvisorSSN   INTEGER NOT NULL,   -- bold line: every grad has an advisor
+  AdvisorSSN   INTEGER NOT NULL,   -- bold arrow: every grad has exactly one advisor
   Since        DATE,               -- attribute of SupervisedBy
   PRIMARY KEY (S_Id),
   FOREIGN KEY (S_Id) REFERENCES Student(S_Id) ON DELETE CASCADE,
